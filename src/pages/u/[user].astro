@@ -14,7 +14,9 @@ if (user.length > 15) {
 }
 
 if (!user.match(/^[a-zA-Z0-9_]+$/)) {
-  throw new Error("Usernames can only contain letters, numbers, and underscores");
+  throw new Error(
+    "Usernames can only contain letters, numbers, and underscores"
+  );
 }
 
 const cacheKey = `twitter_verification:${user.toLowerCase()}`;
@@ -78,7 +80,12 @@ async function getTwitterVerification() {
       const page = await browser.newPage();
       await page.goto(snapshotUri.href);
 
-      const userDiv = await page.waitForSelector('div[data-testid="UserName"]');
+      const userDiv = await page.waitForSelector(
+        'div[data-testid="UserName"]',
+        {
+          timeout: 3000,
+        }
+      );
       const isVerified = Boolean(
         await userDiv
           ?.$(`div[aria-label="Provides details about verified accounts."]`)
@@ -118,35 +125,37 @@ const isVerified = await getTwitterVerification();
           {
             isVerified === "definitely_verified" && (
               <>
-                🥳 <span class="font-bold text-orange-500">@{user}</span> was verified.
+                🥳 <span class="font-bold text-orange-500">@{user}</span> was
+                verified.
               </>
             )
           }
           {
             isVerified === "definitely_not" && (
               <>
-                😢 <span class="font-bold text-orange-500">@{user}</span> was not verified.
+                😢 <span class="font-bold text-orange-500">@{user}</span> was
+                not verified.
               </>
             )
           }
           {
             isVerified === "maybe" && (
               <>
-                🤔 <span class="font-bold text-orange-500">@{user}</span> verification is
-                unknown...
+                🤔 <span class="font-bold text-orange-500">@{user}</span>{" "}
+                verification is unknown...
               </>
             )
           }
         </h1>
         {
-          (isVerified === "definitely_verified" ||
-            isVerified === "definitely_not") ? (
+          isVerified === "definitely_verified" ||
+          isVerified === "definitely_not" ? (
             <p class="text-xl text-zinc-50 text-center">
               according to records before October 28, 2022
             </p>
           ) : (
             <p class="text-xl text-zinc-50 text-center">
-                could not find any records before October 28, 2022
+              could not find any records before October 28, 2022
             </p>
           )
         }

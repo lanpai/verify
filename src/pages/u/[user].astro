@@ -44,14 +44,13 @@ async function getTwitterVerification() {
 
   const waybackUri = new URL("https://web.archive.org/cdx/search/cdx");
   waybackUri.searchParams.append("url", twitterUrl);
-  //waybackUri.searchParams.append("from", "20221001");
+  waybackUri.searchParams.append("from", "20200101");
   waybackUri.searchParams.append("to", "20221027");
   waybackUri.searchParams.append("fl", "timestamp");
   waybackUri.searchParams.append("output", "json");
   waybackUri.searchParams.append("filter", "mimetype:text/html");
   waybackUri.searchParams.append("filter", "original:https://.*");
   waybackUri.searchParams.append("fastLatest", "true");
-  waybackUri.searchParams.append("limit", "10");
   waybackUri.searchParams.append("collapse", "timestamp:6"); // Collapse first 6 digits of timestamp (every month)
 
   const snapshots = WaybackData.parse(

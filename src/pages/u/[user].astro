@@ -88,8 +88,8 @@ async function getTwitterVerification() {
 
       console.log(`@${user}: ${isVerified ? "verified" : "not verified"}`);
 
-      // Result found, close browser and all other pages
-      browser.close();
+      // Result found, close page
+      page.close();
 
       const newValue = isVerified ? "definitely_verified" : "definitely_not";
       redis.set(cacheKey, newValue);

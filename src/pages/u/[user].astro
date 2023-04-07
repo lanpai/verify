@@ -1,7 +1,7 @@
 ---
 import z from "zod";
-import { Redis } from "@upstash/redis";
 import browserGlobal from "../../browser";
+import redis from "../../upstash";
 
 const { user } = Astro.params;
 
@@ -22,10 +22,6 @@ const cacheKey = `twitter_verification:${user.toLowerCase()}`;
 const twitterUrl = `https://twitter.com/${encodeURIComponent(user)}`;
 
 async function getTwitterVerification() {
-  const redis = new Redis({
-    url: import.meta.env.UPSTASH_REDIS_URL,
-    token: import.meta.env.UPSTASH_REDIS_TOKEN,
-  });
   const cachedValue = await redis.get<
     "definitely_verified" | "definitely_not" | "unknown"
   >(cacheKey);

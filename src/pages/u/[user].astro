@@ -61,6 +61,7 @@ async function getTwitterVerification() {
   snapshots.reverse();
 
   if (snapshots.length === 0) {
+    redis.set(cacheKey, "maybe");
     return "maybe";
   }
 

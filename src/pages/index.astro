@@ -16,12 +16,12 @@
           <input
             id="handle"
             type="text"
-            class="transition-all ease-in-out duration-200 py-2 px-4 bg-transparent border border-zinc-50 text-zinc-50 text-2xl rounded flex-1 before:content-['@']"
+            class="transition-all ease-in-out duration-200 py-2 px-4 bg-transparent border border-zinc-50 text-zinc-50 text-2xl rounded flex-1 before:content-['@'] disabled:opacity-50"
             maxlength="16"
             pattern="^@?[a-zA-Z0-9_]{1,15}$"
             placeholder="@TwitterHandle"
           />
-          <button id="button" class="transition-all ease-in-out duration-200 font-bold text-zinc-50 text-2xl bg-orange-500 rounded py-2 px-4 flex-1"
+          <button id="button" class="transition-all ease-in-out duration-200 font-bold text-zinc-50 text-2xl bg-orange-500 rounded py-2 px-4 flex-1 disabled:bg-gray-400"
             >Check</button
           >
         </form>
@@ -30,15 +30,17 @@
     </div>
   </body>
   <script is:inline>
+    const input = document.getElementById("handle");
+    const button = document.getElementById("button");
+
+    input.disabled = false;
+    button.disabled = false;
+
     function onSubmit() {
-      const input = document.getElementById("handle");
-      const button = document.getElementById("button");
       const handle = input.value.replace("@", "");
       if (handle.trim()) {
         input.disabled = true;
-        input.classList.add("opacity-50");
         button.disabled = true;
-        button.classList.add("bg-gray-400");
 
         console.log("Navigating to " + handle);
         const url = `/u/${handle}`;

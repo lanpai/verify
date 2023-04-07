@@ -1,0 +1,160 @@
+---
+import z from "zod";
+import { Redis } from "@upstash/redis";
+import puppeteer from "puppeteer";
+
+const { user } = Astro.params;
+
+if (!user) {
+  throw new Error("No user provided");
+}
+
+if (user.length > 15) {
+  throw new Error("Usernames cannot be longer than 15 characters");
+}
+
+if (!user.match(/^[a-zA-Z0-9_]+$/)) {
+  throw new Error("Usernames can only contain letters, numbers, and underscores");
+}
+
+const cacheKey = `twitter_verification:${user.toLowerCase()}`;
+
+const twitterUrl = `https://twitter.com/${encodeURIComponent(user)}`;
+
+async function getTwitterVerification() {
+  const redis = new Redis({
+    url: import.meta.env.UPSTASH_REDIS_URL,
+    token: import.meta.env.UPSTASH_REDIS_TOKEN,
+  });
+  const cachedValue = await redis.get<
+    "definitely_verified" | "definitely_not" | "unknown"
+  >(cacheKey);
+
+  if (cachedValue) {
+    return cachedValue;
+  }
+
+  const browserRes = puppeteer.launch();
+
+  const WaybackData = z.array(
+    z.tuple([
+      //z.string(), // URL Key
+      z.string(), // Timestamp
+      //z.string(), // Original URL
+      //z.string(), // MIME Type
+      //z.string(), // Status Code
+      //z.string(), // Digest
+      //z.string(), // Length
+    ])
+  );
+
+  const waybackUri = new URL("https://web.archive.org/cdx/search/cdx");
+  waybackUri.searchParams.append("url", twitterUrl);
+  //waybackUri.searchParams.append("from", "20221001");
+  waybackUri.searchParams.append("to", "20221027");
+  waybackUri.searchParams.append("fl", "timestamp");
+  waybackUri.searchParams.append("output", "json");
+  waybackUri.searchParams.append("filter", "mimetype:text/html");
+  waybackUri.searchParams.append("filter", "original:https://.*");
+  waybackUri.searchParams.append("fastLatest", "true");
+  waybackUri.searchParams.append("collapse", "timestamp:6"); // Collapse first 6 digits of timestamp (every month)
+
+  const snapshots = WaybackData.parse(
+    await fetch(waybackUri.href).then((res) => res.json())
+  );
+  snapshots.shift(); // Remove header row
+  snapshots.reverse();
+
+  if (snapshots.length === 0) {
+    return "maybe";
+  }
+
+  // Launch headless browser
+  const browser = await browserRes;
+
+  for (const snapshot of snapshots) {
+    try {
+      const [timestamp] = snapshot;
+      const snapshotUri = new URL(
+        `https://web.archive.org/web/${timestamp}/${twitterUrl}`
+      );
+
+      const page = await browser.newPage();
+      await page.goto(snapshotUri.href);
+
+      const userDiv = await page.waitForSelector('div[data-testid="UserName"]');
+      const isVerified = Boolean(
+        await userDiv
+          ?.$(`div[aria-label="Provides details about verified accounts."]`)
+          .catch(() => null)
+      );
+
+      console.log(`@${user}: ${isVerified ? "verified" : "not verified"}`);
+
+      // Result found, close browser and all other pages
+      browser.close();
+
+      const newValue = isVerified ? "definitely_verified" : "definitely_not";
+      redis.set(cacheKey, newValue);
+      return newValue;
+    } catch (e) {
+      continue;
+    }
+  }
+
+  redis.set(cacheKey, "maybe");
+  return "maybe";
+}
+
+const isVerified = await getTwitterVerification();
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>@{user}</title>
+  </head>
+  <body class="bg-zinc-950">
+    <div class="container mx-auto">
+      <div class="flex flex-col items-center justify-center min-h-screen p-8">
+        <h1 class="text-3xl text-zinc-50 text-center">
+          {
+            isVerified === "definitely_verified" && (
+              <>
+                🥳 <span class="font-bold text-orange-500">@{user}</span> was verified.
+              </>
+            )
+          }
+          {
+            isVerified === "definitely_not" && (
+              <>
+                😢 <span class="font-bold text-orange-500">@{user}</span> was not verified.
+              </>
+            )
+          }
+          {
+            isVerified === "maybe" && (
+              <>
+                🤔 <span class="font-bold text-orange-500">@{user}</span> verification is
+                unknown...
+              </>
+            )
+          }
+        </h1>
+        {
+          (isVerified === "definitely_verified" ||
+            isVerified === "definitely_not") ? (
+            <p class="text-xl text-zinc-50 text-center">
+              according to records before October 28, 2022
+            </p>
+          ) : (
+            <p class="text-xl text-zinc-50 text-center">
+                could not find any records before October 28, 2022
+            </p>
+          )
+        }
+      </div>
+    </div>
+  </body>
+</html>
